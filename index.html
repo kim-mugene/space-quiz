@@ -261,7 +261,21 @@
   .results .score-line {
     font-size: 15px;
     color: var(--muted);
-    margin-bottom: 4px;
+    margin-bottom: 6px;
+  }
+
+  .results .best-score {
+    font-size: 14px;
+    color: var(--muted);
+    margin: 0 0 6px;
+  }
+
+  .results .new-best {
+    min-height: 20px;
+    margin: 0 0 12px;
+    color: var(--correct);
+    font-size: 14px;
+    font-weight: 700;
   }
 
   .results .verdict {
@@ -323,6 +337,8 @@
         <div class="emoji" id="result-emoji">🚀</div>
         <h2 id="result-title">Quiz Complete!</h2>
         <p class="score-line" id="result-score"></p>
+        <p class="best-score" id="result-best-score"></p>
+        <p class="new-best hidden" id="result-new-best" aria-live="polite"></p>
         <p class="verdict" id="result-verdict"></p>
         <button class="restart-btn" id="restart-btn">Try Again</button>
       </div>
@@ -389,6 +405,7 @@
   let current = 0;
   let score = 0;
   let answered = false;
+  const bestScoreStorageKey = 'spaceQuizBestScore';
 
   const progressFill = document.getElementById('progress-fill');
   const scoreEl = document.getElementById('score');
@@ -459,6 +476,13 @@
     questionView.classList.add('hidden');
     resultsView.classList.remove('hidden');
 
+    const previousBest = readBestScore();
+    const isNewBest = previousBest === null || score > previousBest;
+    const bestScore = isNewBest ? score : previousBest;
+    if (isNewBest) {
+      saveBestScore(score);
+    }
+
     const pct = score / questions.length;
     let emoji, verdict;
     if (pct === 1) {
@@ -480,7 +504,34 @@
 
     document.getElementById('result-emoji').textContent = emoji;
     document.getElementById('result-score').textContent = `You scored ${score} out of ${questions.length}`;
+    document.getElementById('result-best-score').textContent = `Best score: ${bestScore} out of ${questions.length}`;
+    const newBestEl = document.getElementById('result-new-best');
+    newBestEl.textContent = isNewBest ? '🎉 New best!' : '';
+    newBestEl.classList.toggle('hidden', !isNewBest);
     document.getElementById('result-verdict').textContent = verdict;
+  }
+
+  function readBestScore() {
+    try {
+      const storedScore = localStorage.getItem(bestScoreStorageKey);
+      if (storedScore === null) return null;
+
+      const parsedScore = Number(storedScore);
+      return Number.isInteger(parsedScore) && parsedScore >= 0 && parsedScore <= questions.length
+        ? parsedScore
+        : null;
+    } catch (error) {
+      console.warn('Unable to read the best score from localStorage.', error);
+      return null;
+    }
+  }
+
+  function saveBestScore(value) {
+    try {
+      localStorage.setItem(bestScoreStorageKey, String(value));
+    } catch (error) {
+      console.warn('Unable to save the best score to localStorage.', error);
+    }
   }
 
   restartBtn.addEventListener('click', () => {
